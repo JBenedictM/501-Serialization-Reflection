@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER">
+		<attributes>
+			<attribute name="module" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/bille/OneDrive/Documents/CPSC 501 Advance Programming/Assignments/A3/A3-Repo/jdom-2.0.6.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
