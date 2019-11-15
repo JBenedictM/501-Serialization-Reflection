@@ -1,7 +1,11 @@
 import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -9,6 +13,8 @@ import java.util.List;
 import org.jdom2.Attribute;
 import org.jdom2.Document;
 import org.jdom2.Element;
+import org.jdom2.JDOMException;
+import org.jdom2.input.SAXBuilder;
 import org.jdom2.output.Format;
 import org.jdom2.output.XMLOutputter;
 
@@ -16,7 +22,9 @@ public class Serializer {
 	private String a = "test";
 	private int b = 1;
 	private HashSet<Integer> visited_objs;
-	
+	private HashMap<Integer, Object> recreated_obj;
+	private List<Element> xml_children;
+
 	
 	public org.jdom2.Document serialize(Object obj) {
 		
@@ -33,19 +41,6 @@ public class Serializer {
 			output_doc.getRootElement().addContent(xml_objs.get(i));
 			
 			//			System.out.println("Element Name: " + xml_objs.get(i).getAttributeValue("class"));
-		}
-		
-		
-		try {
-//			new XMLOutputter().output(output_doc, System.out);
-			XMLOutputter xmlOut = new XMLOutputter();
-			xmlOut.setFormat(Format.getPrettyFormat());
-			xmlOut.output(output_doc, new FileWriter("file.xml"));
-			
-			System.out.println("File saved\n");
-			
-		} catch(Exception e) {
-			System.out.println("XML outputtter error\n");
 		}
 		
 
@@ -71,7 +66,7 @@ public class Serializer {
 		
 		// parse id and object name
 		current_xml_obj.setAttribute("class", obj_class.getName());
-		current_xml_obj.setAttribute("id", "0x"+Integer.toHexString(obj_id));
+		current_xml_obj.setAttribute("id", Integer.toString((obj_id)));
 		
 		// check if array
 		if (obj_class.isArray()) {
@@ -94,8 +89,8 @@ public class Serializer {
 						
 					} else {
 						
-						String ref_address = Integer.toHexString(System.identityHashCode(array_element_obj));
-						arr_element.setText("0x"+ref_address);
+						String ref_address = Integer.toString(System.identityHashCode(array_element_obj));
+						arr_element.setText(ref_address);
 						
 						// recurse
 //						System.out.printf("Current field class %s\n", field_val.getClass().getName());
@@ -114,6 +109,9 @@ public class Serializer {
 			// parse object fields
 			Field[] obj_fields = obj_class.getDeclaredFields();
 			for (Field aField : obj_fields) {
+				// skip static fields
+				if (Modifier.isStatic(aField.getModifiers())) continue;
+				
 				Element field_element = new Element("field");
 				
 				// set field accessible
@@ -121,14 +119,15 @@ public class Serializer {
 				
 				// set field attributes
 				field_element.setAttribute("name", aField.getName());
-				Class field_type = aField.getType();
-				field_element.setAttribute("declaringclass", field_type.getName());
+				
 				
 				// get field value
 				Element field_child = null;
 				Object field_val = get_field_value(obj, aField);
 				
-				
+				Class field_type = aField.getType();
+				// get field declaring class
+				field_element.setAttribute("declaringclass", field_val == null? field_type.getName() : field_val.getClass().getName());
 				
 				if (field_type.isPrimitive()) {
 					// create value element
@@ -145,8 +144,8 @@ public class Serializer {
 					} else {
 						
 						// create reference element
-						String ref_address = Integer.toHexString(System.identityHashCode(field_val));
-						field_child.setText("0x"+ref_address);
+						String ref_address = Integer.toString(System.identityHashCode(field_val));
+						field_child.setText(ref_address);
 						
 						// recurse
 //						System.out.printf("Current field class %s\n", field_val.getClass().getName());
@@ -186,16 +185,319 @@ public class Serializer {
 	}
 	
 	public Object deserialize(org.jdom2.Document doc) {
+		Element root = doc.getRootElement();
+		xml_children = root.getChildren();
+		recreated_obj = new HashMap<Integer, Object>();
+		Object main_obj = null;
+		
+		try {
+			main_obj = xml_to_obj(xml_children.get(0).getAttribute("id").getIntValue());
+
+		} catch (Exception e) {
+			System.out.println("Failed to create main object");
+		}
 		
 		
 		
+		return main_obj;
+		
+	}
+	
+	private Object xml_to_obj(int ref_id) {
+		
+		if (recreated_obj.containsKey(ref_id)) {
+			return recreated_obj.get(ref_id);
+		}
+		
+		Element instantiate_element = null;
+		Object output_obj = null;
+		for (Element aChild : xml_children) {
+			String id_str = aChild.getAttributeValue("id");
+			if (id_str == null) {
+				System.out.println("Missing id attribute, incorrect format.");
+				continue;
+			}
+			
+			int id = Integer.parseInt(id_str);
+			if (id == ref_id) {
+				instantiate_element = aChild;
+				break;
+			}
+			
+		}
+		
+		
+		
+		if (instantiate_element == null) {
+			System.out.println("Reference id was not found, this should not happen");
+			return null;
+		}
+		
+		
+		// check for object class name
+		String class_name = instantiate_element.getAttributeValue("class");
+		if (class_name == null) {
+			System.out.println("Class name not found, incorrect formatting");
+			return null;
+		}
+		
+		// create element class
+		try {
+			Class element_class = Class.forName(class_name);
+			
+			if (element_class.isArray()) {
+				// instaniate array object
+				
+				// get array len
+				String arr_len_str = instantiate_element.getAttributeValue("length");
+				if (arr_len_str == null) {
+					System.out.println("Array object has no length attribute, incorrect formatting");
+					return null;
+				}
+				// instaniate base array object
+				int arr_len = Integer.parseInt(arr_len_str);
+				output_obj = Array.newInstance(element_class.getComponentType(), arr_len);
+				
+				List<Element> arr_elements = instantiate_element.getChildren();
+				for (int i=0; i<arr_len; i++) {
+					Element current_element = arr_elements.get(i);
+					Object element_obj = null;
+					
+					if (current_element.getName().equalsIgnoreCase("value")) {
+						// create the primitive object
+						// get consuctor with string parameter
+						Class prim_wrapper = Array.get(output_obj, 0).getClass();
+						
+						String val_str = current_element.getText();
+						if (val_str == null || !current_element.getName().equalsIgnoreCase("value")) {
+							System.out.println("Primitive array element has no value element, incorrect formatting");
+							continue;
+						}
+						
+						
+						// instaniate primitive object
+						element_obj = create_primitive_object(prim_wrapper, val_str);
+						if (element_obj == null) {
+							System.out.printf("Failed to create primitive object %s\n", prim_wrapper.toString());
+							return null;
+						}
+						
+					} else {
+						// instantiate regular objects
+						String ref_str = current_element.getText();
+						if (ref_str == null || current_element.getName().equalsIgnoreCase("reference")) {
+							System.out.println("Reference object element has no reference value, incorrect formatting");
+							continue;
+						}
+						
+						int current_element_id = Integer.parseInt(ref_str);
+						element_obj = xml_to_obj(current_element_id);
+						recreated_obj.put(current_element_id, element_obj);
+						
+						System.out.printf("Created object %s of with id %s\n", instantiate_element.getAttributeValue("class"), instantiate_element.getAttributeValue("id"));
+					}
+					
+					Array.set(output_obj, i, element_obj);
+					
+				}
+				
+				
+			} else {
+				// instantiate regular objects
+				Constructor null_constr = element_class.getConstructor();
+				if (!null_constr.isAccessible()) null_constr.setAccessible(true);
+				output_obj = null_constr.newInstance();
+				
+				// recreate field objects/primitives
+				List<Element> element_fields = instantiate_element.getChildren();
+				// loop through the field values
+				for (Element field_element : element_fields) {
+					
+					String declaring_class_name = field_element.getAttributeValue("declaringclass");
+					if (declaring_class_name == null) {
+						System.out.println("Field has no declaring class, incorrect formatting");
+						continue;
+					}
+					
+					Class field_class = Class.forName(declaring_class_name);
+					
+					Object field_obj = null;
+					if (field_element.getChildText("reference") == null) {
+						// create the primitive object
+						// get consuctor with string parameter
+						Constructor field_constr = field_class.getConstructor(String.class);
+						if (!field_constr.isAccessible()) field_constr.setAccessible(true);
+						
+						String val_str = field_element.getChildText("value");
+						if (val_str == null) {
+							System.out.printf("%s has no Primitive Field has no value element, incorrect formatting\n", field_element.getAttributeValue("name"));
+							continue;
+						}
+						// instaniate primitive object
+						field_obj = field_constr.newInstance(val_str);
+						
+						
+					} else {
+						// instantiate object through recursion
+						String ref_str = field_element.getChildText("reference");
+						if (ref_str == null) {
+							System.out.printf("%s has no reference element, incorrect formatting\n", field_element.getAttributeValue("name"));
+							continue;
+						}
+						// check if object is already in the map
+						Integer field_id = Integer.parseInt(ref_str);
+						if (recreated_obj.containsKey(field_id)) {
+							// get field object from map
+							field_obj = recreated_obj.get(field_id);
+						
+						} else {	
+							// instaniate field object
+							field_obj = xml_to_obj(field_id);
+							// add object to maps of instantiated objects
+							recreated_obj.put(field_id, field_obj);
+							
+							System.out.printf("Created object %s of with id %s\n", instantiate_element.getAttributeValue("class"), instantiate_element.getAttributeValue("id"));
+						}
+						
+					}
+					
+					// get field reflection from class
+					String field_name = field_element.getAttributeValue("name");
+					if (field_name == null) {
+						System.out.println("Field has has no name attribute, incorrect formatting");
+						continue;
+					}
+					
+					// set field value
+					Field current_field = element_class.getDeclaredField(field_name);
+					
+					if (!current_field.isAccessible()) current_field.setAccessible(true);
+					
+					current_field.set(output_obj, field_obj);
+					
+				}
+				
+			}
+
+		} catch (Exception e) {
+			System.out.print("Failed to recreate object due to: ");
+			System.out.println(e.getMessage());
+			e.printStackTrace();
+		}
+		
+		
+		return output_obj;
+	}
+	
+	// does not check if given class is actually a primitive
+	private Object create_primitive_object(Class primitive_wrapper, String str_val) {
+		
+		Object output_obj = null;
+		
+		try {
+			if (primitive_wrapper == Character.class) {
+				Constructor constr = primitive_wrapper.getConstructor(char.class);
+				if (!constr.isAccessible()) constr.setAccessible(true);
+				
+				output_obj = constr.newInstance(str_val.charAt(0));
+			} else {
+				Constructor constr = primitive_wrapper.getConstructor(String.class);
+				if (!constr.isAccessible()) constr.setAccessible(true);
+				
+				// instaniate primitive object
+				output_obj = constr.newInstance(str_val);
+				
+			}
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+			e.printStackTrace();
+		}	
+		
+		return output_obj;
 	}
 	
 	
 	public static void main(String[] args) {
 		String testInput = "Hi";
+		int[] testInput2 = {1,2,3};
 		Serializer s = new Serializer();
-		s.serialize(s);
+		Document doc1 = s.serialize(testInput2);
+		
+		try {
+//			new XMLOutputter().output(output_doc, System.out);
+			XMLOutputter xmlOut = new XMLOutputter();
+			xmlOut.setFormat(Format.getPrettyFormat());
+			xmlOut.output(doc1, new FileWriter("file.xml"));
+			
+			System.out.println("File saved\n");
+			
+		} catch(Exception e) {
+			System.out.println("XML outputtter error\n");
+		}
+		
+		
+		try {
+			SAXBuilder builder = new SAXBuilder();
+			Document test_doc = builder.build("file.xml");
+			Object testOutput = s.deserialize(test_doc);
+			
+			if (testOutput == null) {
+				System.out.println("deserialized object is null");
+				return;
+			}
+			
+			int[] realOut = (int[])testOutput;
+			for (int i=0; i<realOut.length ; i++) {
+				System.out.printf("%d\n", realOut[i]);
+			}
+
+			Document doc2 = s.serialize(testOutput);
+			
+
+			XMLOutputter xmlOut = new XMLOutputter();
+			xmlOut.setFormat(Format.getPrettyFormat());
+			xmlOut.output(doc2, new FileWriter("file2.xml"));
+			
+			System.out.println("File saved\n");
+			
+		} catch (JDOMException jde) {
+			System.out.println(jde.getMessage());
+		
+		} catch (IOException ioe) {
+			System.out.println(ioe.getMessage());
+
+		}
+
+		
+		
+		
+		
+//		try {
+//			
+//			
+//			Class gran_kid_class = Class.forName("java.lang.Integer");
+//			Constructor gran_kid_constr = gran_kid_class.getConstructor(String.class);
+//			Object gran_kid_obj = gran_kid_constr.newInstance("5");
+////			Array.newInstance(child_class.getComponentType(), 10);
+////			
+////			Constructor[] child_obj = child_class.getConstructors();
+////			System.out.printf("len = %d\n", child_obj.length);
+////			System.out.println(child_obj);
+////			Object array = Array.newInstance(child_class, 10);
+////			System.out.println(child_obj.toString());
+//
+//			
+//		} catch (ClassNotFoundException e) {
+//			System.out.println("class not found exception");
+//		
+//		} catch (NoSuchMethodException nsme) {
+//			System.out.println("no such method");
+//		
+//		} catch (Exception e) {
+//			System.out.println("object instantiation exception");
+//		}
+//		
+
 		
 	}
 
