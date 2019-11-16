@@ -36,7 +36,7 @@ public class Server {
 			
 				// show object reflection info
 				Inspector ins = new Inspector();
-				ins.inspect(deserialized_obj, true);
+				ins.inspect(deserialized_obj, false);
 				
 			}
 			
