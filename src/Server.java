@@ -1,9 +1,12 @@
+import java.io.FileWriter;
 import java.io.ObjectInputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 
 import org.jdom2.Document;
+import org.jdom2.output.Format;
+import org.jdom2.output.XMLOutputter;
 
 public class Server {
 	
@@ -11,7 +14,7 @@ public class Server {
 		
 		try {
 			
-			int port = 8888;
+			int port = 4444;
 			ServerSocket serverSocket = new ServerSocket(port);
 			Socket socket = null;
 			while (true) {
@@ -22,6 +25,12 @@ public class Server {
 				Object obj = inputStream.readObject();
 			
 				Document received_obj = (Document)obj;
+				// save as an xml document
+				XMLOutputter xmlOutput = new XMLOutputter();
+	            xmlOutput.setFormat(Format.getPrettyFormat());
+	            String server_file = "Server_File.xml";
+	            xmlOutput.output(received_obj, new FileWriter(server_file));
+	            
 				Serializer s = new Serializer();
 				Object deserialized_obj = s.deserialize(received_obj);
 			

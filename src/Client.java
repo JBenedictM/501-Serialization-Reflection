@@ -1,8 +1,12 @@
+import java.io.FileWriter;
 import java.io.ObjectOutputStream;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.util.ArrayList;
 
 import org.jdom2.Document;
+import org.jdom2.output.Format;
+import org.jdom2.output.XMLOutputter;
 
 public class Client {
 	
@@ -109,15 +113,23 @@ public class Client {
 		
 		
 		
-		String serverAddress = "localhost";
-		int serverPort = 8888;
+		int serverPort = 4444;
 		try {
+			String serverAddress = InetAddress.getLocalHost().getHostAddress();
 			Socket socket = new Socket(serverAddress, serverPort);
 			ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
 			
 			// send the specified object
 			Serializer ser = new Serializer();
 			Document doc = ser.serialize(input_obj);
+			
+			// save the document as an xml document
+            XMLOutputter xmlOutput = new XMLOutputter();
+
+            // Display in a readable format
+            xmlOutput.setFormat(Format.getPrettyFormat());
+            String client_file = "Client_File.xml";
+            xmlOutput.output(doc, new FileWriter(client_file)); 
 			
 			outputStream.writeObject(doc);
 			
