@@ -184,7 +184,7 @@ public class Serializer {
 		return field_val;
 	}
 	
-	public Object deserialize(org.jdom2.Document doc) {
+	public Object deserialize(Document doc) {
 		Element root = doc.getRootElement();
 		xml_children = root.getChildren();
 		recreated_obj = new HashMap<Integer, Object>();
@@ -283,18 +283,43 @@ public class Serializer {
 						}
 						
 					} else {
+						
 						// instantiate regular objects
 						String ref_str = current_element.getText();
-						if (ref_str == null || current_element.getName().equalsIgnoreCase("reference")) {
+						if (ref_str == null || !current_element.getName().equalsIgnoreCase("reference")) {
 							System.out.println("Reference object element has no reference value, incorrect formatting");
-							continue;
+							return null;
 						}
 						
-						int current_element_id = Integer.parseInt(ref_str);
-						element_obj = xml_to_obj(current_element_id);
-						recreated_obj.put(current_element_id, element_obj);
+						// check whether reference value is an id or null
+						if (ref_str.equalsIgnoreCase("null")) {
+							// reference is null
+							element_obj = null;
+							
+						} else {
+							// reference exists so therefore recreate object
+							// check if object is already in the map
+							Integer element_id = Integer.parseInt(ref_str);
+							if (recreated_obj.containsKey(element_id)) {
+								// get field object from map
+								element_obj = recreated_obj.get(element_id);
+									
+							} else {	
+								// instantiate field object
+								element_obj = xml_to_obj(element_id);
+									
+								// add object to maps of instantiated objects
+								recreated_obj.put(element_id, element_obj);
+								
+								
+								
+							}
+							
+							System.out.printf("Created element object %s with value %s\n", current_element.getName(), current_element.getText());
+						}
+							
 						
-						System.out.printf("Created object %s of with id %s\n", instantiate_element.getAttributeValue("class"), instantiate_element.getAttributeValue("id"));
+						
 					}
 					
 					Array.set(output_obj, i, element_obj);
@@ -342,22 +367,39 @@ public class Serializer {
 						String ref_str = field_element.getChildText("reference");
 						if (ref_str == null) {
 							System.out.printf("%s has no reference element, incorrect formatting\n", field_element.getAttributeValue("name"));
-							continue;
-						}
-						// check if object is already in the map
-						Integer field_id = Integer.parseInt(ref_str);
-						if (recreated_obj.containsKey(field_id)) {
-							// get field object from map
-							field_obj = recreated_obj.get(field_id);
-						
-						} else {	
-							// instaniate field object
-							field_obj = xml_to_obj(field_id);
-							// add object to maps of instantiated objects
-							recreated_obj.put(field_id, field_obj);
+							return null;
 							
-							System.out.printf("Created object %s of with id %s\n", instantiate_element.getAttributeValue("class"), instantiate_element.getAttributeValue("id"));
+						} else {
+							
+							// check whether reference value is an id or null
+							if (ref_str.equalsIgnoreCase("null")) {
+								// reference is null
+								field_obj = null;
+								
+							} else {
+								// reference exists so therefore recreate object
+								// check if object is already in the map
+								Integer field_id = Integer.parseInt(ref_str);
+								if (recreated_obj.containsKey(field_id)) {
+									// get field object from map
+									field_obj = recreated_obj.get(field_id);
+								
+								} else {	
+									// instantiate field object
+									field_obj = xml_to_obj(field_id);
+									
+									// add object to maps of instantiated objects
+									recreated_obj.put(field_id, field_obj);
+								}
+								
+							}
+							
+							
 						}
+						
+						
+						System.out.printf("Created object %s of with id %s\n", instantiate_element.getAttributeValue("class"), instantiate_element.getAttributeValue("id"));
+						
 						
 					}
 					
@@ -420,8 +462,15 @@ public class Serializer {
 	public static void main(String[] args) {
 		String testInput = "Hi";
 		int[] testInput2 = {1,2,3};
+		HashMap<Integer, Integer> hm = new HashMap<Integer, Integer>();
+		hm.put(1,1);
+		String[] testInput3 = {"hi", "hello"};
+		ArrayList<String> ar = new ArrayList<String>();
+		ar.add("Hi");
+		ar.add("Hello");
+		
 		Serializer s = new Serializer();
-		Document doc1 = s.serialize(testInput2);
+		Document doc1 = s.serialize(ar);
 		
 		try {
 //			new XMLOutputter().output(output_doc, System.out);
@@ -446,10 +495,13 @@ public class Serializer {
 				return;
 			}
 			
-			int[] realOut = (int[])testOutput;
-			for (int i=0; i<realOut.length ; i++) {
-				System.out.printf("%d\n", realOut[i]);
-			}
+			ArrayList<String> arOut = (ArrayList)testOutput;
+			System.out.println(arOut.get(1));
+			
+//			int[] realOut = (int[])testOutput;
+//			for (int i=0; i<realOut.length ; i++) {
+//				System.out.printf("%d\n", realOut[i]);
+//			}
 
 			Document doc2 = s.serialize(testOutput);
 			
@@ -467,36 +519,6 @@ public class Serializer {
 			System.out.println(ioe.getMessage());
 
 		}
-
-		
-		
-		
-		
-//		try {
-//			
-//			
-//			Class gran_kid_class = Class.forName("java.lang.Integer");
-//			Constructor gran_kid_constr = gran_kid_class.getConstructor(String.class);
-//			Object gran_kid_obj = gran_kid_constr.newInstance("5");
-////			Array.newInstance(child_class.getComponentType(), 10);
-////			
-////			Constructor[] child_obj = child_class.getConstructors();
-////			System.out.printf("len = %d\n", child_obj.length);
-////			System.out.println(child_obj);
-////			Object array = Array.newInstance(child_class, 10);
-////			System.out.println(child_obj.toString());
-//
-//			
-//		} catch (ClassNotFoundException e) {
-//			System.out.println("class not found exception");
-//		
-//		} catch (NoSuchMethodException nsme) {
-//			System.out.println("no such method");
-//		
-//		} catch (Exception e) {
-//			System.out.println("object instantiation exception");
-//		}
-//		
 
 		
 	}
