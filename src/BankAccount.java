@@ -113,4 +113,12 @@ public class BankAccount {
 		double interest = balance * interestRate;
 		balance += interest;
 	}
+	
+	public double get_interest_rate() {
+		return this.interestRate;
+	}
+	
+	
+	
+	
 }

@@ -55,6 +55,7 @@ public class Bank{
      */
     public void addAccount(BankAccount account) {
         accounts.add(account);
+        num_of_accounts++;
     }
     
     /**
@@ -100,4 +101,22 @@ public class Bank{
         }
         return account;
     }
+    
+    // getter methods for the private fields
+    public String get_bank_name() {
+    	return new String(this.bank_name);
+    }
+    
+    public int get_number_of_accounts() {
+    	return this.num_of_accounts;
+    }
+    
+    public double get_interest_rate() {
+    	return this.interest_rate;
+    }
+    
+    
+    
+   
+    
 }

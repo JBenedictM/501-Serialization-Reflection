@@ -8,5 +8,6 @@
 	</classpathentry>
 	<classpathentry kind="lib" path="C:/Users/bille/OneDrive/Documents/CPSC 501 Advance Programming/Assignments/A3/A3-Repo/jdom-2.0.6.jar" sourcepath="C:/Users/bille/OneDrive/Documents/CPSC 501 Advance Programming/Assignments/A3/A3-Repo/jdom-2.0.6-sources.jar"/>
 	<classpathentry kind="lib" path="C:/Users/bille/OneDrive/Documents/CPSC 501 Advance Programming/Assignments/A3/A3-Repo/jdom-2.0.6-javadoc.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

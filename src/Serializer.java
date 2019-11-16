@@ -314,8 +314,6 @@ public class Serializer {
 								// add object to maps of instantiated objects
 								recreated_obj.put(element_id, element_obj);
 								
-								
-								
 							}
 							
 							System.out.printf("Created element object %s with value %s\n", current_element.getName(), current_element.getText());
