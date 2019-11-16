@@ -50,7 +50,7 @@ public class Serializer {
 		return output_doc;
 	}
 	
-	public ArrayList<Element> obj_to_xmls(Object obj) {
+	private ArrayList<Element> obj_to_xmls(Object obj) {
 		
 		// init arraylist return
 		ArrayList<Element> xml_objs = new ArrayList<Element>();
@@ -174,7 +174,7 @@ public class Serializer {
 	}
 	
 	
-	public Object get_field_value(Object obj, Field aField) {
+	private Object get_field_value(Object obj, Field aField) {
 		Object field_val = null;
 		
 		try {
@@ -197,9 +197,10 @@ public class Serializer {
 			main_obj = xml_to_obj(xml_children.get(0).getAttribute("id").getIntValue());
 
 		} catch (Exception e) {
-			System.out.println("Failed to create main object");
+			System.out.println("Failed to get main object's id");
+			System.out.println(e.getMessage());
+			e.printStackTrace();
 		}
-		
 		
 		
 		return main_obj;
@@ -225,11 +226,8 @@ public class Serializer {
 			if (id == ref_id) {
 				instantiate_element = aChild;
 				break;
-			}
-			
+			}	
 		}
-		
-		
 		
 		if (instantiate_element == null) {
 			System.out.println("Reference id was not found, this should not happen");
@@ -250,176 +248,15 @@ public class Serializer {
 			
 			if (element_class.isArray()) {
 				// instaniate array object
-				
-				// get array len
-				String arr_len_str = instantiate_element.getAttributeValue("length");
-				if (arr_len_str == null) {
-					System.out.println("Array object has no length attribute, incorrect formatting");
-					return null;
-				}
-				// instaniate base array object
-				int arr_len = Integer.parseInt(arr_len_str);
-				output_obj = Array.newInstance(element_class.getComponentType(), arr_len);
-				
-				List<Element> arr_elements = instantiate_element.getChildren();
-				for (int i=0; i<arr_len; i++) {
-					Element current_element = arr_elements.get(i);
-					Object element_obj = null;
-					
-					if (current_element.getName().equalsIgnoreCase("value")) {
-						// create the primitive object
-						// get consuctor with string parameter
-						Class prim_wrapper = Array.get(output_obj, 0).getClass();
-						
-						String val_str = current_element.getText();
-						if (val_str == null || !current_element.getName().equalsIgnoreCase("value")) {
-							System.out.println("Primitive array element has no value element, incorrect formatting");
-							continue;
-						}
-						
-						
-						// instaniate primitive object
-						element_obj = create_primitive_object(prim_wrapper, val_str);
-						if (element_obj == null) {
-							System.out.printf("Failed to create primitive object %s\n", prim_wrapper.toString());
-							return null;
-						}
-						
-					} else {
-						
-						// instantiate regular objects
-						String ref_str = current_element.getText();
-						if (ref_str == null || !current_element.getName().equalsIgnoreCase("reference")) {
-							System.out.println("Reference object element has no reference value, incorrect formatting");
-							return null;
-						}
-						
-						// check whether reference value is an id or null
-						if (ref_str.equalsIgnoreCase("null")) {
-							// reference is null
-							element_obj = null;
-							
-						} else {
-							// reference exists so therefore recreate object
-							// check if object is already in the map
-							Integer element_id = Integer.parseInt(ref_str);
-							if (recreated_obj.containsKey(element_id)) {
-								// get field object from map
-								element_obj = recreated_obj.get(element_id);
-									
-							} else {	
-								// instantiate field object
-								element_obj = xml_to_obj(element_id);
-									
-								// add object to maps of instantiated objects
-								recreated_obj.put(element_id, element_obj);
-								
-							}
-							
-							System.out.printf("Created element object %s with value %s\n", current_element.getName(), current_element.getText());
-						}
-							
-						
-						
-					}
-					
-					Array.set(output_obj, i, element_obj);
-					
-				}
-				
+				output_obj = instantiate_array_obj(element_class, instantiate_element);
 				
 			} else {
-				// instantiate regular objects
-				Constructor null_constr = element_class.getConstructor();
-				if (!null_constr.isAccessible()) null_constr.setAccessible(true);
-				output_obj = null_constr.newInstance();
+				output_obj = instantiate_regular_obj(element_class, instantiate_element);
 				
-				// recreate field objects/primitives
-				List<Element> element_fields = instantiate_element.getChildren();
-				// loop through the field values
-				for (Element field_element : element_fields) {
-					
-					String declaring_class_name = field_element.getAttributeValue("declaringclass");
-					if (declaring_class_name == null) {
-						System.out.println("Field has no declaring class, incorrect formatting");
-						continue;
-					}
-					
-					Class field_class = Class.forName(declaring_class_name);
-					
-					Object field_obj = null;
-					if (field_element.getChildText("reference") == null) {
-						// create the primitive object
-						// get consuctor with string parameter
-						Constructor field_constr = field_class.getConstructor(String.class);
-						if (!field_constr.isAccessible()) field_constr.setAccessible(true);
-						
-						String val_str = field_element.getChildText("value");
-						if (val_str == null) {
-							System.out.printf("%s has no Primitive Field has no value element, incorrect formatting\n", field_element.getAttributeValue("name"));
-							continue;
-						}
-						// instaniate primitive object
-						field_obj = field_constr.newInstance(val_str);
-						
-						
-					} else {
-						// instantiate object through recursion
-						String ref_str = field_element.getChildText("reference");
-						if (ref_str == null) {
-							System.out.printf("%s has no reference element, incorrect formatting\n", field_element.getAttributeValue("name"));
-							return null;
-							
-						} else {
-							
-							// check whether reference value is an id or null
-							if (ref_str.equalsIgnoreCase("null")) {
-								// reference is null
-								field_obj = null;
-								
-							} else {
-								// reference exists so therefore recreate object
-								// check if object is already in the map
-								Integer field_id = Integer.parseInt(ref_str);
-								if (recreated_obj.containsKey(field_id)) {
-									// get field object from map
-									field_obj = recreated_obj.get(field_id);
-								
-								} else {	
-									// instantiate field object
-									field_obj = xml_to_obj(field_id);
-									
-									// add object to maps of instantiated objects
-									recreated_obj.put(field_id, field_obj);
-								}
-								
-							}
-							
-							
-						}
-						
-						
-						System.out.printf("Created object %s of with id %s\n", instantiate_element.getAttributeValue("class"), instantiate_element.getAttributeValue("id"));
-						
-						
-					}
-					
-					// get field reflection from class
-					String field_name = field_element.getAttributeValue("name");
-					if (field_name == null) {
-						System.out.println("Field has has no name attribute, incorrect formatting");
-						continue;
-					}
-					
-					// set field value
-					Field current_field = element_class.getDeclaredField(field_name);
-					
-					if (!current_field.isAccessible()) current_field.setAccessible(true);
-					
-					current_field.set(output_obj, field_obj);
-					
-				}
-				
+			}
+			
+			if (output_obj == null) {
+				System.out.printf("Failed to instantiate %s with id %d\n", class_name, ref_id);
 			}
 
 		} catch (Exception e) {
@@ -428,6 +265,185 @@ public class Serializer {
 			e.printStackTrace();
 		}
 		
+		
+		return output_obj;
+	}
+	
+	// instantiates regular objects not including arrays
+	private Object instantiate_regular_obj(Class obj_class, Element obj_element) {
+		Object output_obj = null;
+		
+		try {
+			// instantiate object with null constructor
+			Constructor null_constr = obj_class.getConstructor();
+			if (!null_constr.isAccessible()) null_constr.setAccessible(true);
+			output_obj = null_constr.newInstance();
+			
+			// recreate field objects/primitives
+			List<Element> element_fields = obj_element.getChildren();
+			// loop through the field values
+			for (Element field_element : element_fields) {
+				
+				// get field class
+				String declaring_class_name = field_element.getAttributeValue("declaringclass");
+				if (declaring_class_name == null) {
+					System.out.println("Field has no declaring class, incorrect formatting");
+					return null;
+				}
+				
+				Class field_class = Class.forName(declaring_class_name);
+				
+				Object field_obj = null;
+				if (field_element.getChildText("reference") == null) {
+					// create the primitive object
+					
+					// get value as string
+					String val_str = field_element.getChildText("value");
+					if (val_str == null) {
+						System.out.printf("%s has no Primitive Field has no value element, incorrect formatting\n", field_element.getAttributeValue("name"));
+						return null;
+					}
+					
+					// instaniate primitive object
+					field_obj = create_primitive_object(field_class, val_str);
+					
+					
+				} else {
+					// instantiate object through recursion
+					String ref_str = field_element.getChildText("reference");
+					if (ref_str == null) {
+						System.out.printf("%s has no reference element, incorrect formatting\n", field_element.getAttributeValue("name"));
+						return null;
+						
+					} else {
+						
+						// check whether reference value is an id or null
+						if (ref_str.equalsIgnoreCase("null")) {
+							// reference is null
+							field_obj = null;
+							
+						} else {
+							// reference exists so therefore recreate object
+							// check if object is already in the map
+							Integer field_id = Integer.parseInt(ref_str);
+							if (recreated_obj.containsKey(field_id)) {
+								// get field object from map
+								field_obj = recreated_obj.get(field_id);
+							
+							} else {	
+								// instantiate field object
+								field_obj = xml_to_obj(field_id);
+								
+								// add object to maps of instantiated objects
+								recreated_obj.put(field_id, field_obj);
+							}
+						}
+					}
+					
+//					System.out.printf("Created object %s of with id %s\n", obj_element.getAttributeValue("class"), obj_element.getAttributeValue("id"));
+					
+					
+				}
+				
+				// get field reflection from class
+				String field_name = field_element.getAttributeValue("name");
+				if (field_name == null) {
+					System.out.println("Field has has no name attribute, incorrect formatting");
+					return null;
+				}
+				
+				// set field value
+				Field current_field = obj_class.getDeclaredField(field_name);
+				
+				if (!current_field.isAccessible()) current_field.setAccessible(true);
+				
+				current_field.set(output_obj, field_obj);
+				
+			}
+			
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+			e.printStackTrace();
+		}
+		
+		
+		return output_obj;
+		
+	}
+	
+	private Object instantiate_array_obj(Class obj_class, Element obj_element) {
+		Object output_obj = null;
+		
+		// get array len
+		String arr_len_str = obj_element.getAttributeValue("length");
+		if (arr_len_str == null) {
+			System.out.println("Array object has no length attribute, incorrect formatting");
+			return null;
+		}
+		// instaniate base array object
+		int arr_len = Integer.parseInt(arr_len_str);
+		output_obj = Array.newInstance(obj_class.getComponentType(), arr_len);
+		
+		List<Element> arr_elements = obj_element.getChildren();
+		for (int i=0; i<arr_len; i++) {
+			Element current_element = arr_elements.get(i);
+			Object element_obj = null;
+			
+			if (current_element.getName().equalsIgnoreCase("value")) {
+				// create the primitive object
+				// get consuctor with string parameter
+				Class prim_wrapper = Array.get(output_obj, 0).getClass();
+				
+				String val_str = current_element.getText();
+				if (val_str == null || !current_element.getName().equalsIgnoreCase("value")) {
+					System.out.println("Primitive array element has no value element, incorrect formatting");
+					continue;
+				}
+				
+				// instaniate primitive object
+				element_obj = create_primitive_object(prim_wrapper, val_str);
+				if (element_obj == null) {
+					System.out.printf("Failed to create primitive object %s\n", prim_wrapper.toString());
+					return null;
+				}
+				
+			} else {
+				
+				// instantiate regular objects
+				String ref_str = current_element.getText();
+				if (ref_str == null || !current_element.getName().equalsIgnoreCase("reference")) {
+					System.out.println("Reference object element has no reference value, incorrect formatting");
+					return null;
+				}
+				
+				// check whether reference value is an id or null
+				if (ref_str.equalsIgnoreCase("null")) {
+					// reference is null
+					element_obj = null;
+					
+				} else {
+					// reference exists so therefore recreate object
+					// check if object is already in the map
+					Integer element_id = Integer.parseInt(ref_str);
+					if (recreated_obj.containsKey(element_id)) {
+						// get field object from map
+						element_obj = recreated_obj.get(element_id);
+							
+					} else {	
+						// instantiate field object
+						element_obj = xml_to_obj(element_id);
+							
+						// add object to maps of instantiated objects
+						recreated_obj.put(element_id, element_obj);
+						
+					}
+					
+					System.out.printf("Created element object %s with value %s\n", current_element.getName(), current_element.getText());
+				}			
+			}
+			
+			Array.set(output_obj, i, element_obj);
+		}
 		
 		return output_obj;
 	}
@@ -444,6 +460,7 @@ public class Serializer {
 				
 				output_obj = constr.newInstance(str_val.charAt(0));
 			} else {
+				
 				Constructor constr = primitive_wrapper.getConstructor(String.class);
 				if (!constr.isAccessible()) constr.setAccessible(true);
 				
