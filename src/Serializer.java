@@ -1,29 +1,27 @@
-import java.io.FileWriter;
-import java.io.IOException;
+//import java.io.FileWriter;
+//import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.net.Socket;
+//import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
+//import java.util.Iterator;
 import java.util.List;
-import java.util.Vector;
+//import java.util.Vector;
 
-import org.jdom2.Attribute;
+//import org.jdom2.Attribute;
 import org.jdom2.Document;
 import org.jdom2.Element;
-import org.jdom2.JDOMException;
-import org.jdom2.input.SAXBuilder;
-import org.jdom2.output.Format;
-import org.jdom2.output.XMLOutputter;
+//import org.jdom2.JDOMException;
+//import org.jdom2.input.SAXBuilder;
+//import org.jdom2.output.Format;
+//import org.jdom2.output.XMLOutputter;
 
 
 public class Serializer {
-	private String a = "test";
-	private int b = 1;
 	private HashSet<Integer> visited_objs;
 	private HashMap<Integer, Object> recreated_obj;
 	private List<Element> xml_children;
@@ -148,8 +146,6 @@ public class Serializer {
 
 				xml_objs.addAll(field_objs);
 			} 
-			
-			
 		}
 		
 		field_element.addContent(field_child);
@@ -354,8 +350,6 @@ public class Serializer {
 					}
 					
 //					System.out.printf("Created object %s of with id %s\n", obj_element.getAttributeValue("class"), obj_element.getAttributeValue("id"));
-					
-					
 				}
 				
 				// get field reflection from class
@@ -488,70 +482,6 @@ public class Serializer {
 		
 		return output_obj;
 	}
-	
-	
-	public static void main(String[] args) {
-		String testInput = "Hi";
-		int[] testInput2 = {1,2,3};
-		HashMap<Integer, Integer> hm = new HashMap<Integer, Integer>();
-		hm.put(1,1);
-		String[] testInput3 = {"hi", "hello"};
-		ArrayList<String> ar = new ArrayList<String>();
-		ar.add("Hi");
-		ar.add("Hello");
-//		Socket sock = new Socket();
-		Class c = Integer.class;
-		Object obj = new Object();
-	
-//		obj.
-		
-		Serializer s = new Serializer();
-		Document doc1 = s.serialize(obj);
-		
-		try {
-//			SAXBuilder builder = new SAXBuilder();
-//			Document test_doc = builder.build(System.in);
-//			builder.build
-			Object testOutput = s.deserialize(doc1);
-			
-			if (testOutput == null) {
-				System.out.println("deserialized object is null");
-				return;
-			}
-			
-//			ArrayList<String> arOut = (ArrayList)testOutput;
-//			System.out.println(arOut.get(0));
-			
-//			int[] realOut = (int[])testOutput;
-//			for (int i=0; i<realOut.length ; i++) {
-//				System.out.printf("%d\n", realOut[i]);
-//			}
-//
-//			Document doc2 = s.serialize(testOutput);
-//			
-//
-//			XMLOutputter xmlOut = new XMLOutputter();
-//			xmlOut.setFormat(Format.getPrettyFormat());
-//			xmlOut.output(doc2, new FileWriter("file2.xml"));
-//			
-//			System.out.println("File saved\n");
-			
-		} catch (Exception e) {
-			System.out.println(e.getMessage());
-			e.printStackTrace();
-		}
-			
-//		} catch (JDOMException jde) {
-//			System.out.println(jde.getMessage());
-//		
-//		} catch (IOException ioe) {
-//			System.out.println(ioe.getMessage());
-//
-//		}
-	}
-//
-//		
-//	}
 
 }
 
