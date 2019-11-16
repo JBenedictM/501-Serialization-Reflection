@@ -78,30 +78,9 @@ public class Serializer {
 			current_xml_obj.setAttribute("length", Integer.toString(arr_len));
 			
 			for (int i=0; i<arr_len; i++) {
-				Element arr_element;
 				Object array_element_obj = Array.get(obj, i);
 				
-				if (obj_class.getComponentType().isPrimitive()) {
-					arr_element = new Element("value");
-					arr_element.setText(array_element_obj.toString());
-					
-				} else {
-					arr_element = new Element("reference");
-					if (array_element_obj == null) {
-						arr_element.setText("null");
-						
-					} else {
-						
-						String ref_address = Integer.toString(System.identityHashCode(array_element_obj));
-						arr_element.setText(ref_address);
-						
-						// recurse
-//						System.out.printf("Current field class %s\n", field_val.getClass().getName());
-						ArrayList<Element> array_objs = obj_to_xmls(array_element_obj);
-
-						xml_objs.addAll(array_objs);
-					}	
-				}
+				Element arr_element = create_array_element(array_element_obj, obj_class, xml_objs);
 				
 				current_xml_obj.addContent(arr_element);					
 			}
@@ -112,65 +91,99 @@ public class Serializer {
 			// parse object fields
 			Field[] obj_fields = obj_class.getDeclaredFields();
 			for (Field aField : obj_fields) {
+				
 				// skip static fields
 				if (Modifier.isStatic(aField.getModifiers())) continue;
 				
-				Element field_element = new Element("field");
+				Element field_element = create_field_element(obj, aField, xml_objs);
 				
-				// set field accessible
-				if (!aField.isAccessible()) aField.setAccessible(true);
-				
-				// set field attributes
-				field_element.setAttribute("name", aField.getName());
-				
-				
-				// get field value
-				Element field_child = null;
-				Object field_val = get_field_value(obj, aField);
-				
-				Class field_type = aField.getType();
-				// get field declaring class
-				field_element.setAttribute("declaringclass", field_val == null? field_type.getName() : field_val.getClass().getName());
-				
-				if (field_type.isPrimitive()) {
-					// create value element
-					field_child = new Element("value");
-					field_child.setText(field_val.toString());
-
-				} else {
-					
-					field_child = new Element("reference");
-
-					if (field_val == null) {
-						field_child.setText("null");
-
-					} else {
-						
-						// create reference element
-						String ref_address = Integer.toString(System.identityHashCode(field_val));
-						field_child.setText(ref_address);
-						
-						// recurse
-//						System.out.printf("Current field class %s\n", field_val.getClass().getName());
-						ArrayList<Element> field_objs = obj_to_xmls(field_val);
-
-						xml_objs.addAll(field_objs);
-					} 
-					
-					
-				}
-				
-				field_element.addContent(field_child);
 				current_xml_obj.addContent(field_element);
-				
 			}
 			
 		}
 		
-		
-		
-		
 		return xml_objs;
+	}
+	
+	private Element create_field_element(Object obj, Field aField, ArrayList<Element> xml_objs) {
+		
+		Element field_element = new Element("field");
+		
+		// set field accessible
+		if (!aField.isAccessible()) aField.setAccessible(true);
+		
+		// set field attributes
+		field_element.setAttribute("name", aField.getName());
+		
+		
+		// get field value
+		Element field_child = null;
+		Object field_val = get_field_value(obj, aField);
+		
+		Class field_type = aField.getType();
+		// get field declaring class
+		field_element.setAttribute("declaringclass", field_val == null? field_type.getName() : field_val.getClass().getName());
+		
+		if (field_type.isPrimitive()) {
+			// create value element
+			field_child = new Element("value");
+			field_child.setText(field_val.toString());
+
+		} else {
+			
+			field_child = new Element("reference");
+
+			if (field_val == null) {
+				field_child.setText("null");
+
+			} else {
+				
+				// create reference element
+				String ref_address = Integer.toString(System.identityHashCode(field_val));
+				field_child.setText(ref_address);
+				
+				// recurse
+//				System.out.printf("Current field class %s\n", field_val.getClass().getName());
+				ArrayList<Element> field_objs = obj_to_xmls(field_val);
+
+				xml_objs.addAll(field_objs);
+			} 
+			
+			
+		}
+		
+		field_element.addContent(field_child);
+		
+		return field_element;
+	}
+	
+	// xml_objs is used to store all the new objects that have been converted into Element/xml
+	private Element create_array_element(Object obj, Class obj_class, ArrayList<Element> xml_objs) {
+		Element output_el = null;
+		
+		if (obj_class.getComponentType().isPrimitive()) {
+			output_el = new Element("value");
+			output_el.setText(obj.toString());
+			
+		} else {
+			output_el = new Element("reference");
+			if (obj == null) {
+				output_el.setText("null");
+				
+			} else {
+				
+				String ref_address = Integer.toString(System.identityHashCode(obj));
+				output_el.setText(ref_address);
+				
+				// recurse
+//				System.out.printf("Current field class %s\n", field_val.getClass().getName());
+				ArrayList<Element> array_objs = obj_to_xmls(obj);
+
+				xml_objs.addAll(array_objs);
+			}	
+		}
+		
+		return output_el;
 	}
 	
 	
@@ -305,7 +318,7 @@ public class Serializer {
 					}
 					
 					// instaniate primitive object
-					field_obj = create_primitive_object(field_class, val_str);
+					field_obj = instantiate_primitive_obj(field_class, val_str);
 					
 					
 				} else {
@@ -401,7 +414,7 @@ public class Serializer {
 				}
 				
 				// instaniate primitive object
-				element_obj = create_primitive_object(prim_wrapper, val_str);
+				element_obj = instantiate_primitive_obj(prim_wrapper, val_str);
 				if (element_obj == null) {
 					System.out.printf("Failed to create primitive object %s\n", prim_wrapper.toString());
 					return null;
@@ -438,7 +451,7 @@ public class Serializer {
 						
 					}
 					
-					System.out.printf("Created element object %s with value %s\n", current_element.getName(), current_element.getText());
+//					System.out.printf("Created element object %s with value %s\n", current_element.getName(), current_element.getText());
 				}			
 			}
 			
@@ -449,7 +462,7 @@ public class Serializer {
 	}
 	
 	// does not check if given class is actually a primitive
-	private Object create_primitive_object(Class primitive_wrapper, String str_val) {
+	private Object instantiate_primitive_obj(Class primitive_wrapper, String str_val) {
 		
 		Object output_obj = null;
 		
