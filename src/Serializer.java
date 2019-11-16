@@ -4,11 +4,13 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Vector;
 
 import org.jdom2.Attribute;
 import org.jdom2.Document;
@@ -18,6 +20,7 @@ import org.jdom2.input.SAXBuilder;
 import org.jdom2.output.Format;
 import org.jdom2.output.XMLOutputter;
 
+
 public class Serializer {
 	private String a = "test";
 	private int b = 1;
@@ -26,7 +29,7 @@ public class Serializer {
 	private List<Element> xml_children;
 
 	
-	public org.jdom2.Document serialize(Object obj) {
+	public Document serialize(Object obj) {
 		
 		Element root = new Element("serialized");
 		Document output_doc = new Document(root);
@@ -43,7 +46,7 @@ public class Serializer {
 			//			System.out.println("Element Name: " + xml_objs.get(i).getAttributeValue("class"));
 		}
 		
-
+		
 		return output_doc;
 	}
 	
@@ -468,71 +471,59 @@ public class Serializer {
 		ArrayList<String> ar = new ArrayList<String>();
 		ar.add("Hi");
 		ar.add("Hello");
+//		Socket sock = new Socket();
+		Class c = Integer.class;
+		Object obj = new Object();
+	
+//		obj.
 		
 		Serializer s = new Serializer();
-		Document doc1 = s.serialize(ar);
+		Document doc1 = s.serialize(obj);
 		
 		try {
-//			new XMLOutputter().output(output_doc, System.out);
-			XMLOutputter xmlOut = new XMLOutputter();
-			xmlOut.setFormat(Format.getPrettyFormat());
-			xmlOut.output(doc1, new FileWriter("file.xml"));
-			
-			System.out.println("File saved\n");
-			
-		} catch(Exception e) {
-			System.out.println("XML outputtter error\n");
-		}
-		
-		
-		try {
-			SAXBuilder builder = new SAXBuilder();
-			Document test_doc = builder.build("file.xml");
-			Object testOutput = s.deserialize(test_doc);
+//			SAXBuilder builder = new SAXBuilder();
+//			Document test_doc = builder.build(System.in);
+//			builder.build
+			Object testOutput = s.deserialize(doc1);
 			
 			if (testOutput == null) {
 				System.out.println("deserialized object is null");
 				return;
 			}
 			
-			ArrayList<String> arOut = (ArrayList)testOutput;
-			System.out.println(arOut.get(1));
+//			ArrayList<String> arOut = (ArrayList)testOutput;
+//			System.out.println(arOut.get(0));
 			
 //			int[] realOut = (int[])testOutput;
 //			for (int i=0; i<realOut.length ; i++) {
 //				System.out.printf("%d\n", realOut[i]);
 //			}
-
-			Document doc2 = s.serialize(testOutput);
+//
+//			Document doc2 = s.serialize(testOutput);
+//			
+//
+//			XMLOutputter xmlOut = new XMLOutputter();
+//			xmlOut.setFormat(Format.getPrettyFormat());
+//			xmlOut.output(doc2, new FileWriter("file2.xml"));
+//			
+//			System.out.println("File saved\n");
 			
-
-			XMLOutputter xmlOut = new XMLOutputter();
-			xmlOut.setFormat(Format.getPrettyFormat());
-			xmlOut.output(doc2, new FileWriter("file2.xml"));
-			
-			System.out.println("File saved\n");
-			
-		} catch (JDOMException jde) {
-			System.out.println(jde.getMessage());
-		
-		} catch (IOException ioe) {
-			System.out.println(ioe.getMessage());
-
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+			e.printStackTrace();
 		}
-
-		
+			
+//		} catch (JDOMException jde) {
+//			System.out.println(jde.getMessage());
+//		
+//		} catch (IOException ioe) {
+//			System.out.println(ioe.getMessage());
+//
+//		}
 	}
+//
+//		
+//	}
 
 }
-
-
-
-
-
-
-
-
-
-
-
 
